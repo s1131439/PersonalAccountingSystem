@@ -19,6 +19,8 @@ namespace PersonalAccountingSystem
 
         // 定義存檔的檔名
         private string filePath = "accounting_data.json";
+        private int editingIndex = -1;
+        private bool isUnsaved = false;
         public PersonalAccountingSystem()
         {
             InitializeComponent();
@@ -26,48 +28,54 @@ namespace PersonalAccountingSystem
 
         private void btnInsert_Click(object sender, EventArgs e)
         {
-            // ----- 1. 防呆檢查 -----
-
-            // 檢查分類有沒有選 (假設你的 ComboBox 叫 cmbCategory)
+            // ----- 1. 防呆檢查 (保持不變) -----
             if (cmbCategory.SelectedIndex == -1)
             {
                 MessageBox.Show("請選擇消費分類！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
-            // 檢查金額是否為空，以及是否為有效數字 (假設你的 TextBox 叫 txtAmount)
-            if (string.IsNullOrWhiteSpace(txtAmount.Text) || !int.TryParse(txtAmount.Text, out int amount))
+            if (string.IsNullOrWhiteSpace(txtAmount.Text) || !int.TryParse(txtAmount.Text, out int amount) || amount <= 0)
             {
-                MessageBox.Show("請輸入正確的金額數字（不可包含中英文字母）！", "輸入錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("請輸入正確的大於 0 的金額數字！", "輸入錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            // 金額不能為負數
-            if (amount <= 0)
-            {
-                MessageBox.Show("金額必須大於 0 元！", "輸入錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            // ----- 2. 讀取介面資料並建立物件 -----
-
-            // 判斷是支出還是收入 (假設你的 RadioButton 叫 rbExpense 和 rbIncome)
             string type = rbExpense.Checked ? "支出" : "收入";
 
-            Transaction newRecord = new Transaction
+            // ----- 2. 判斷是「新資料新增」還是「舊資料修改」 -----
+            if (editingIndex == -1)
             {
-                Date = dtpDate.Value,                    // 來自 DateTimePicker
-                Type = type,
-                Category = cmbCategory.SelectedItem.ToString(),
-                Amount = amount,
-                Description = txtDescription.Text        // 來自 TextBox
-            };
+                // 模式 A：全新新增
+                Transaction newRecord = new Transaction
+                {
+                    Date = dtpDate.Value,
+                    Type = type,
+                    Category = cmbCategory.SelectedItem.ToString(),
+                    Amount = amount,
+                    Description = txtDescription.Text
+                };
+                records.Add(newRecord);
+                isUnsaved = true; // 有新資料或修改，代表有未儲存的變更
+            }
+            else
+            {
+                // 模式 B：修改舊資料 (直接覆蓋 list 裡該索引的資料)
+                records[editingIndex].Date = dtpDate.Value;
+                records[editingIndex].Type = type;
+                records[editingIndex].Category = cmbCategory.SelectedItem.ToString();
+                records[editingIndex].Amount = amount;
+                records[editingIndex].Description = txtDescription.Text;
 
-            // ----- 3. 加進清單並更新 UI -----
+                // 修改完畢，將狀態重設回正常模式
+                editingIndex = -1;
+                btnInsert.Text = "新增紀錄";
+                btnInsert.UseVisualStyleBackColor = true; // 恢復預設按鈕顏色
+                MessageBox.Show("資料修改成功！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
 
-            records.Add(newRecord);                      // 加進全域清單
-            UpdateGridAndLabels();                       // 呼叫更新畫面的方法
-            ClearInputs();                               // 呼叫清空輸入欄位的方法
+            // ----- 3. 刷新 UI 與清空 -----
+            UpdateGridAndLabels();
+            ClearInputs();
         }
         // 負責把 records 清單更新到 DataGridView，並重新計算總金額
         private void UpdateGridAndLabels()
@@ -104,6 +112,49 @@ namespace PersonalAccountingSystem
             lblBalance.Text = $"目前餘額：{balance} 元";
         }
 
+        private void btnFilter_Click(object sender, EventArgs e)
+        {
+            dgvRecords.Rows.Clear();
+
+            var filteredRecords = records.AsEnumerable();
+
+            // 1. 關鍵字篩選
+            if (!string.IsNullOrWhiteSpace(txtSearch.Text))
+            {
+                filteredRecords = filteredRecords.Where(r =>
+                    (r.Description != null && r.Description.Contains(txtSearch.Text)) ||
+                    r.Category.Contains(txtSearch.Text));
+            }
+
+            // 2. 收支類型篩選 (修正後的安全寫法)
+            if (cmbFilterType.SelectedIndex != -1)
+            {
+                string selectedText = cmbFilterType.SelectedItem.ToString();
+
+                // 如果選「全部」就不篩選，選其他的就精準比對「支出」或「收入」
+                if (selectedText == "支出" || selectedText == "只看支出")
+                {
+                    filteredRecords = filteredRecords.Where(r => r.Type == "支出");
+                }
+                else if (selectedText == "收入" || selectedText == "只看收入")
+                {
+                    filteredRecords = filteredRecords.Where(r => r.Type == "收入");
+                }
+            }
+
+            // 3. 繪製到畫面上
+            foreach (var record in filteredRecords)
+            {
+                dgvRecords.Rows.Add(
+                    record.Date.ToString("yyyy-MM-dd"),
+                    record.Type,
+                    record.Category,
+                    record.Amount,
+                    record.Description
+                );
+            }
+        }
+
         // 方便使用者繼續記下一筆，自動清空輸入框
         private void ClearInputs()
         {
@@ -135,6 +186,7 @@ namespace PersonalAccountingSystem
             {
                 // 1. 從後台的全域 records 清單中移除該筆資料
                 records.RemoveAt(selectedIndex);
+                isUnsaved = true; // 資料被刪除了，也算變更
 
                 // 2. 重新刷新畫面與計算金額
                 UpdateGridAndLabels();
@@ -156,6 +208,7 @@ namespace PersonalAccountingSystem
 
                 // 4. 提示使用者儲存成功
                 MessageBox.Show("資料已成功儲存！", "儲存成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                isUnsaved = false; // 資料已經安全寫入硬碟，解除警報
             }
             catch (Exception ex)
             {
@@ -190,6 +243,60 @@ namespace PersonalAccountingSystem
                 {
                     MessageBox.Show($"讀取舊資料失敗，檔案可能損毀。\n錯誤原因：{ex.Message}", "讀檔錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
+            }
+        }
+
+        private void dgvRecords_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= records.Count) return;
+
+            // 1. 記下現在正在修改這一列
+            editingIndex = e.RowIndex;
+
+            // 2. 獲取該筆資料並帶入輸入框
+            var record = records[editingIndex];
+            dtpDate.Value = record.Date;
+            if (record.Type == "支出") rbExpense.Checked = true; else rbIncome.Checked = true;
+            cmbCategory.SelectedItem = record.Category;
+            txtAmount.Text = record.Amount.ToString();
+            txtDescription.Text = record.Description;
+
+            // 3. 貼心提示：把新增按鈕的文字改成「確認修改」
+            btnInsert.Text = "確認修改";
+            btnInsert.BackColor = System.Drawing.Color.Orange;
+
+            // 4. ⚡ 閃電引導：自動把游標鎖定到左邊的金額輸入框，並全選文字，方便他直接重打！
+            txtAmount.Focus();
+            txtAmount.SelectAll(); // 自動反白金額，使用者連 Backspace 都不用按，直接打字就能覆蓋
+        }
+
+        private void PersonalAccountingSystem_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            // 如果目前沒有未儲存的變更，直接放行讓視窗關閉
+            if (!isUnsaved) return;
+
+            // 跳出「是、否、取消」三顆按鈕的對話框
+            DialogResult result = MessageBox.Show(
+                "您有尚未儲存的變更，是否進行儲存？",
+                "提醒",
+                MessageBoxButtons.YesNoCancel,
+                MessageBoxIcon.Question
+            );
+
+            if (result == DialogResult.Yes)
+            {
+                // 模式一：使用者按「是」 -> 自動幫忙觸發儲存按鈕的點擊事件
+                btnSave_Click(sender, e);
+                // 儲存完成後，放行關閉視窗 (不阻擋關閉)
+            }
+            else if (result == DialogResult.No)
+            {
+                // 模式二：使用者按「否」 -> 代表確定不儲存，放行關閉視窗 (不阻擋關閉)
+            }
+            else if (result == DialogResult.Cancel)
+            {
+                // 模式三：使用者按「取消」 -> ⚡ 關鍵！取消關閉視窗事件，讓畫面留在原處
+                e.Cancel = true;
             }
         }
     }
