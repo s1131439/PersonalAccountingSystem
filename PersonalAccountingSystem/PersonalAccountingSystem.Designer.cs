@@ -36,9 +36,7 @@
             this.Column4 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column5 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.gpbEdit = new System.Windows.Forms.GroupBox();
-            this.lblBalance = new System.Windows.Forms.Label();
-            this.lblTotalExpense = new System.Windows.Forms.Label();
-            this.lblTotalIncome = new System.Windows.Forms.Label();
+            this.btnClear = new System.Windows.Forms.Button();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnDelete = new System.Windows.Forms.Button();
             this.btnInsert = new System.Windows.Forms.Button();
@@ -50,11 +48,13 @@
             this.rbIncome = new System.Windows.Forms.RadioButton();
             this.rbExpense = new System.Windows.Forms.RadioButton();
             this.dtpDate = new System.Windows.Forms.DateTimePicker();
+            this.lblBalance = new System.Windows.Forms.Label();
+            this.lblTotalExpense = new System.Windows.Forms.Label();
+            this.lblTotalIncome = new System.Windows.Forms.Label();
             this.txtSearch = new System.Windows.Forms.TextBox();
             this.cmbFilterType = new System.Windows.Forms.ComboBox();
             this.btnFilter = new System.Windows.Forms.Button();
             this.lblSearch = new System.Windows.Forms.Label();
-            this.btnClear = new System.Windows.Forms.Button();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             ((System.ComponentModel.ISupportInitialize)(this.dgvRecords)).BeginInit();
             this.gpbEdit.SuspendLayout();
@@ -67,7 +67,7 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.dgvRecords.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-            this.dgvRecords.BackgroundColor = System.Drawing.SystemColors.ButtonFace;
+            this.dgvRecords.BackgroundColor = System.Drawing.Color.WhiteSmoke;
             this.dgvRecords.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvRecords.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.Column1,
@@ -79,7 +79,7 @@
             this.dgvRecords.Name = "dgvRecords";
             this.dgvRecords.RowHeadersWidth = 51;
             this.dgvRecords.RowTemplate.Height = 27;
-            this.dgvRecords.Size = new System.Drawing.Size(584, 577);
+            this.dgvRecords.Size = new System.Drawing.Size(584, 538);
             this.dgvRecords.TabIndex = 0;
             this.dgvRecords.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvRecords_CellDoubleClick);
             // 
@@ -129,62 +129,39 @@
             this.gpbEdit.Controls.Add(this.rbIncome);
             this.gpbEdit.Controls.Add(this.rbExpense);
             this.gpbEdit.Controls.Add(this.dtpDate);
-            this.gpbEdit.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.gpbEdit.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
             this.gpbEdit.Location = new System.Drawing.Point(29, 39);
             this.gpbEdit.Name = "gpbEdit";
-            this.gpbEdit.Size = new System.Drawing.Size(404, 448);
+            this.gpbEdit.Size = new System.Drawing.Size(404, 399);
             this.gpbEdit.TabIndex = 1;
             this.gpbEdit.TabStop = false;
             this.gpbEdit.Text = "編輯";
             // 
-            // lblBalance
+            // btnClear
             // 
-            this.lblBalance.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.lblBalance.AutoSize = true;
-            this.lblBalance.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
-            this.lblBalance.Location = new System.Drawing.Point(22, 128);
-            this.lblBalance.Name = "lblBalance";
-            this.lblBalance.Size = new System.Drawing.Size(149, 25);
-            this.lblBalance.TabIndex = 13;
-            this.lblBalance.Text = "目前餘額：0 元";
-            // 
-            // lblTotalExpense
-            // 
-            this.lblTotalExpense.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.lblTotalExpense.AutoSize = true;
-            this.lblTotalExpense.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
-            this.lblTotalExpense.ForeColor = System.Drawing.Color.Firebrick;
-            this.lblTotalExpense.Location = new System.Drawing.Point(22, 84);
-            this.lblTotalExpense.Name = "lblTotalExpense";
-            this.lblTotalExpense.Size = new System.Drawing.Size(129, 25);
-            this.lblTotalExpense.TabIndex = 12;
-            this.lblTotalExpense.Text = "總支出：0 元";
-            // 
-            // lblTotalIncome
-            // 
-            this.lblTotalIncome.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.lblTotalIncome.AutoSize = true;
-            this.lblTotalIncome.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
-            this.lblTotalIncome.ForeColor = System.Drawing.Color.DarkGreen;
-            this.lblTotalIncome.Location = new System.Drawing.Point(22, 40);
-            this.lblTotalIncome.Name = "lblTotalIncome";
-            this.lblTotalIncome.Size = new System.Drawing.Size(129, 25);
-            this.lblTotalIncome.TabIndex = 11;
-            this.lblTotalIncome.Text = "總收入：0 元";
+            this.btnClear.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.btnClear.Location = new System.Drawing.Point(57, 332);
+            this.btnClear.Name = "btnClear";
+            this.btnClear.Size = new System.Drawing.Size(114, 36);
+            this.btnClear.TabIndex = 14;
+            this.btnClear.Text = "取消";
+            this.btnClear.UseVisualStyleBackColor = true;
+            this.btnClear.Click += new System.EventHandler(this.btnClear_Click);
             // 
             // btnSave
             // 
-            this.btnSave.Location = new System.Drawing.Point(22, 377);
+            this.btnSave.BackColor = System.Drawing.SystemColors.ActiveCaption;
+            this.btnSave.Location = new System.Drawing.Point(229, 332);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(114, 36);
             this.btnSave.TabIndex = 10;
             this.btnSave.Text = "儲存變更";
-            this.btnSave.UseVisualStyleBackColor = true;
+            this.btnSave.UseVisualStyleBackColor = false;
             this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
             // 
             // btnDelete
             // 
-            this.btnDelete.Location = new System.Drawing.Point(267, 335);
+            this.btnDelete.Location = new System.Drawing.Point(229, 284);
             this.btnDelete.Name = "btnDelete";
             this.btnDelete.Size = new System.Drawing.Size(114, 36);
             this.btnDelete.TabIndex = 9;
@@ -194,7 +171,7 @@
             // 
             // btnInsert
             // 
-            this.btnInsert.Location = new System.Drawing.Point(22, 335);
+            this.btnInsert.Location = new System.Drawing.Point(57, 284);
             this.btnInsert.Name = "btnInsert";
             this.btnInsert.Size = new System.Drawing.Size(114, 36);
             this.btnInsert.TabIndex = 8;
@@ -205,7 +182,7 @@
             // lblDescription
             // 
             this.lblDescription.AutoSize = true;
-            this.lblDescription.Location = new System.Drawing.Point(22, 275);
+            this.lblDescription.Location = new System.Drawing.Point(22, 220);
             this.lblDescription.Name = "lblDescription";
             this.lblDescription.Size = new System.Drawing.Size(52, 25);
             this.lblDescription.TabIndex = 7;
@@ -214,7 +191,7 @@
             // lblAmount
             // 
             this.lblAmount.AutoSize = true;
-            this.lblAmount.Location = new System.Drawing.Point(22, 230);
+            this.lblAmount.Location = new System.Drawing.Point(22, 175);
             this.lblAmount.Name = "lblAmount";
             this.lblAmount.Size = new System.Drawing.Size(52, 25);
             this.lblAmount.TabIndex = 6;
@@ -222,7 +199,7 @@
             // 
             // txtDescription
             // 
-            this.txtDescription.Location = new System.Drawing.Point(81, 270);
+            this.txtDescription.Location = new System.Drawing.Point(81, 215);
             this.txtDescription.Name = "txtDescription";
             this.txtDescription.Size = new System.Drawing.Size(300, 34);
             this.txtDescription.TabIndex = 5;
@@ -231,7 +208,7 @@
             // 
             // txtAmount
             // 
-            this.txtAmount.Location = new System.Drawing.Point(81, 225);
+            this.txtAmount.Location = new System.Drawing.Point(81, 170);
             this.txtAmount.Name = "txtAmount";
             this.txtAmount.Size = new System.Drawing.Size(300, 34);
             this.txtAmount.TabIndex = 4;
@@ -249,9 +226,9 @@
             "育",
             "樂",
             "其他"});
-            this.cmbCategory.Location = new System.Drawing.Point(22, 158);
+            this.cmbCategory.Location = new System.Drawing.Point(27, 107);
             this.cmbCategory.Name = "cmbCategory";
-            this.cmbCategory.Size = new System.Drawing.Size(359, 33);
+            this.cmbCategory.Size = new System.Drawing.Size(178, 33);
             this.cmbCategory.TabIndex = 3;
             this.cmbCategory.Text = "-- 請選擇分類 --";
             this.cmbCategory.SelectedIndexChanged += new System.EventHandler(this.cmbCategory_SelectedIndexChanged);
@@ -259,7 +236,7 @@
             // rbIncome
             // 
             this.rbIncome.AutoSize = true;
-            this.rbIncome.Location = new System.Drawing.Point(308, 106);
+            this.rbIncome.Location = new System.Drawing.Point(308, 109);
             this.rbIncome.Name = "rbIncome";
             this.rbIncome.Size = new System.Drawing.Size(73, 29);
             this.rbIncome.TabIndex = 2;
@@ -270,7 +247,7 @@
             // 
             this.rbExpense.AutoSize = true;
             this.rbExpense.Checked = true;
-            this.rbExpense.Location = new System.Drawing.Point(37, 106);
+            this.rbExpense.Location = new System.Drawing.Point(229, 109);
             this.rbExpense.Name = "rbExpense";
             this.rbExpense.Size = new System.Drawing.Size(73, 29);
             this.rbExpense.TabIndex = 1;
@@ -285,9 +262,44 @@
             this.dtpDate.Size = new System.Drawing.Size(359, 34);
             this.dtpDate.TabIndex = 0;
             // 
+            // lblBalance
+            // 
+            this.lblBalance.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.lblBalance.AutoSize = true;
+            this.lblBalance.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.lblBalance.Location = new System.Drawing.Point(22, 128);
+            this.lblBalance.Name = "lblBalance";
+            this.lblBalance.Size = new System.Drawing.Size(149, 25);
+            this.lblBalance.TabIndex = 13;
+            this.lblBalance.Text = "目前餘額：0 元";
+            // 
+            // lblTotalExpense
+            // 
+            this.lblTotalExpense.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.lblTotalExpense.AutoSize = true;
+            this.lblTotalExpense.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.lblTotalExpense.ForeColor = System.Drawing.Color.Firebrick;
+            this.lblTotalExpense.Location = new System.Drawing.Point(22, 84);
+            this.lblTotalExpense.Name = "lblTotalExpense";
+            this.lblTotalExpense.Size = new System.Drawing.Size(129, 25);
+            this.lblTotalExpense.TabIndex = 12;
+            this.lblTotalExpense.Text = "總支出：0 元";
+            // 
+            // lblTotalIncome
+            // 
+            this.lblTotalIncome.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.lblTotalIncome.AutoSize = true;
+            this.lblTotalIncome.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.lblTotalIncome.ForeColor = System.Drawing.Color.DarkGreen;
+            this.lblTotalIncome.Location = new System.Drawing.Point(22, 40);
+            this.lblTotalIncome.Name = "lblTotalIncome";
+            this.lblTotalIncome.Size = new System.Drawing.Size(129, 25);
+            this.lblTotalIncome.TabIndex = 11;
+            this.lblTotalIncome.Text = "總收入：0 元";
+            // 
             // txtSearch
             // 
-            this.txtSearch.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.txtSearch.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
             this.txtSearch.Location = new System.Drawing.Point(587, 49);
             this.txtSearch.Name = "txtSearch";
             this.txtSearch.Size = new System.Drawing.Size(150, 34);
@@ -295,7 +307,7 @@
             // 
             // cmbFilterType
             // 
-            this.cmbFilterType.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.cmbFilterType.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
             this.cmbFilterType.FormattingEnabled = true;
             this.cmbFilterType.Items.AddRange(new object[] {
             "全部",
@@ -309,7 +321,7 @@
             // 
             // btnFilter
             // 
-            this.btnFilter.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.btnFilter.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
             this.btnFilter.Location = new System.Drawing.Point(896, 49);
             this.btnFilter.Name = "btnFilter";
             this.btnFilter.Size = new System.Drawing.Size(132, 34);
@@ -321,23 +333,12 @@
             // lblSearch
             // 
             this.lblSearch.AutoSize = true;
-            this.lblSearch.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.lblSearch.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
             this.lblSearch.Location = new System.Drawing.Point(439, 54);
             this.lblSearch.Name = "lblSearch";
             this.lblSearch.Size = new System.Drawing.Size(132, 25);
             this.lblSearch.TabIndex = 5;
             this.lblSearch.Text = "輸入關鍵字：";
-            // 
-            // btnClear
-            // 
-            this.btnClear.Font = new System.Drawing.Font("微軟正黑體", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
-            this.btnClear.Location = new System.Drawing.Point(142, 338);
-            this.btnClear.Name = "btnClear";
-            this.btnClear.Size = new System.Drawing.Size(75, 30);
-            this.btnClear.TabIndex = 14;
-            this.btnClear.Text = "取消";
-            this.btnClear.UseVisualStyleBackColor = true;
-            this.btnClear.Click += new System.EventHandler(this.btnClear_Click);
             // 
             // groupBox1
             // 
@@ -345,8 +346,8 @@
             this.groupBox1.Controls.Add(this.lblTotalExpense);
             this.groupBox1.Controls.Add(this.lblTotalIncome);
             this.groupBox1.Controls.Add(this.lblBalance);
-            this.groupBox1.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
-            this.groupBox1.Location = new System.Drawing.Point(29, 513);
+            this.groupBox1.Font = new System.Drawing.Font("微軟正黑體", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(136)));
+            this.groupBox1.Location = new System.Drawing.Point(29, 474);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Size = new System.Drawing.Size(404, 172);
             this.groupBox1.TabIndex = 14;
