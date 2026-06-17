@@ -3,49 +3,113 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.IO;
-using System.Text.Json;
 
 namespace PersonalAccountingSystem
 {
+    /// <summary>
+    /// 核心業務邏輯：個人記帳系統主表單
+    /// </summary>
     public partial class PersonalAccountingSystem : Form
     {
-        // 建立一個清單來存放所有的記帳資料
+        #region --- 全域變數與參數宣告 ---
+
+        // 記憶體資料庫：建立一個強型別清單，用來即時存放動態的記帳資料
         private List<Transaction> records = new List<Transaction>();
 
-        // 定義存檔的檔名
+        // 實體檔案資料庫：定義 JSON 存檔的標準相對路徑與檔名
         private string filePath = "accounting_data.json";
+
+        // 狀態控管鎖 A：記錄當前是否處於「修改模式」。-1 代表全新新增，0 以上代表正在編輯的陣列索引
         private int editingIndex = -1;
+
+        // 狀態控管鎖 B：變更警報器。記錄是否有尚未儲存至硬碟的實體資料變更
         private bool isUnsaved = false;
+
+        #endregion
+
+        #region --- 建構式與系統初始化 ---
+
+        /// <summary>
+        /// 表單建構式
+        /// </summary>
         public PersonalAccountingSystem()
         {
+            // 載入由設計視窗自動生成的 UI 元件配置結構
             InitializeComponent();
         }
 
+        /// <summary>
+        /// 事件：視窗載入完畢 (Form_Load)
+        /// </summary>
+        private void PersonalAccountingSystem_Load(object sender, EventArgs e)
+        {
+            // 檢查硬碟中是否存在上一次的歷史記帳 JSON 檔案
+            if (File.Exists(filePath))
+            {
+                try
+                {
+                    // 1. 從硬碟讀取完整的 JSON 結構字串
+                    string jsonString = File.ReadAllText(filePath);
+
+                    // 2. 利用 JSON 反序列化技術，將字串還原為 C# 物件清單
+                    records = JsonSerializer.Deserialize<List<Transaction>>(jsonString);
+
+                    // 3. 安全防禦：若檔案為空導致反序列化失敗，重新初始化清單防止 NullReference 崩潰
+                    if (records == null)
+                    {
+                        records = new List<Transaction>();
+                    }
+
+                    // 4. 讀檔完畢後，即時呼叫核心繪製方法，將歷史帳目渲染至介面表格
+                    UpdateGridAndLabels();
+                }
+                catch (Exception ex)
+                {
+                    // 核心例外處理：若檔案損毀或格式不符，彈出 Error 視窗阻斷程式崩潰
+                    MessageBox.Show($"讀取舊資料失敗，檔案可能損毀。\n錯誤原因：{ex.Message}", "讀檔錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+            // 5. 狀態連動初始化：強制呼叫清空方法，確保所有輸入框與 btnClear 按鈕的狀態同步歸零
+            ClearInputs();
+        }
+
+        #endregion
+
+        #region --- 核心業務：新增、修改與刪除事件 ---
+
+        /// <summary>
+        /// 事件：點擊「新增紀錄 / 確認修改」按鈕
+        /// </summary>
         private void btnInsert_Click(object sender, EventArgs e)
         {
-            // ----- 1. 防呆檢查 (保持不變) -----
+            // 攔截無效的下拉選單：確保使用者必須點選消費分類
             if (cmbCategory.SelectedIndex == -1)
             {
                 MessageBox.Show("請選擇消費分類！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
+            // 攔截非法金額輸入：確保不可為空、不可為非數字文字、不可低於或等於 0 元
             if (string.IsNullOrWhiteSpace(txtAmount.Text) || !int.TryParse(txtAmount.Text, out int amount) || amount <= 0)
             {
                 MessageBox.Show("請輸入正確的大於 0 的金額數字！", "輸入錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
+            // 計算收支狀態：利用三元運算子快速判斷當前的 RadioButton 勾選狀態
             string type = rbExpense.Checked ? "支出" : "收入";
 
-            // ----- 2. 判斷是「新資料新增」還是「舊資料修改」 -----
+            // 路由判斷：依據狀態鎖 editingIndex 分流處理「全新新增」或「舊案修改」
             if (editingIndex == -1)
             {
-                // 模式 A：全新新增
+                // 模式 A：全新新增模式
                 Transaction newRecord = new Transaction
                 {
                     Date = dtpDate.Value,
@@ -54,84 +118,122 @@ namespace PersonalAccountingSystem
                     Amount = amount,
                     Description = txtDescription.Text
                 };
+
+                // 將新物件壓入後台全域 List 清單中
                 records.Add(newRecord);
-                isUnsaved = true; // 有新資料或修改，代表有未儲存的變更
+
+                // 拉響變更警報：標記系統目前有未存檔的變更
+                isUnsaved = true;
             }
             else
             {
-                // 模式 B：修改舊資料 (直接覆蓋 list 裡該索引的資料)
+                // 模式 B：修改舊資料模式 (精準覆蓋 List 記憶體中該指定索引的欄位值)
                 records[editingIndex].Date = dtpDate.Value;
                 records[editingIndex].Type = type;
                 records[editingIndex].Category = cmbCategory.SelectedItem.ToString();
                 records[editingIndex].Amount = amount;
                 records[editingIndex].Description = txtDescription.Text;
 
-                // 修改完畢，將狀態重設回正常模式
-                editingIndex = -1;
-                btnInsert.Text = "新增紀錄";
-                btnInsert.UseVisualStyleBackColor = true; // 恢復預設按鈕顏色
+                // 彈出資訊提示視窗告知使用者修改成功
                 MessageBox.Show("資料修改成功！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
-            // ----- 3. 刷新 UI 與清空 -----
+            // 後置作業：同步重繪前端表格，並呼叫清空方法將狀態解鎖
             UpdateGridAndLabels();
             ClearInputs();
         }
-        // 負責把 records 清單更新到 DataGridView，並重新計算總金額
-        private void UpdateGridAndLabels()
+
+        /// <summary>
+        /// 事件：點擊「刪除紀錄」按鈕
+        /// </summary>
+        private void btnDelete_Click(object sender, EventArgs e)
         {
-            // 1. 清空 DataGridView 舊資料 (假設你的 DataGridView 叫 dgvRecords)
-            dgvRecords.Rows.Clear();
-
-            int totalIncome = 0;
-            int totalExpense = 0;
-
-            // 2. 將清單中的每一筆資料填入表格
-            foreach (var record in records)
+            // 檢查使用者是否確實選取了 DataGridView 中的任意資料列
+            if (dgvRecords.CurrentRow == null || dgvRecords.CurrentRow.Index < 0)
             {
-                dgvRecords.Rows.Add(
-                    record.Date.ToString("yyyy-MM-dd"),
-                    record.Type,
-                    record.Category,
-                    record.Amount,
-                    record.Description
-                );
-
-                // 3. 同步計算總收入與總支出
-                if (record.Type == "收入")
-                    totalIncome += record.Amount;
-                else
-                    totalExpense += record.Amount;
+                MessageBox.Show("請先點擊右邊表格，選取一筆你想刪除的紀錄！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
 
-            // 4. 更新下方的 Label 狀態 (請對照你實際的 Label 命名)
-            lblTotalIncome.Text = $"總收入：{totalIncome} 元";
-            lblTotalExpense.Text = $"總支出：{totalExpense} 元";
+            // 抓取當前反白列的物理索引編號
+            int selectedIndex = dgvRecords.CurrentRow.Index;
 
-            int balance = totalIncome - totalExpense;
-            lblBalance.Text = $"目前餘額：{balance} 元";
+            // 邊界防禦：防止使用者選取到表格最下方的未啟用空白預留列
+            if (selectedIndex >= records.Count) return;
+
+            // 彈出詢問視窗，避免誤刪重要帳目
+            DialogResult result = MessageBox.Show("確定要刪除這筆記帳紀錄嗎？", "確認刪除", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+
+            if (result == DialogResult.OK)
+            {
+                // 1. 自後台 List 資料庫中將指定索引列永久移除
+                records.RemoveAt(selectedIndex);
+
+                // 2. 標記資料變更，啟動未儲存警報
+                isUnsaved = true;
+
+                // 3. 立即重繪前端 DataGridView 並更新動態看板金額
+                UpdateGridAndLabels();
+            }
         }
 
+        #endregion
+
+        #region --- 資料檢索、過濾與持久化 (JSON 讀寫) ---
+
+        /// <summary>
+        /// 事件：點擊「儲存變更」按鈕
+        /// </summary>
+        private void btnSave_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // 1. 配置進階 JSON 引進參數：啟用縮排縮進（WriteIndented），確保儲存出來的文字檔具備人類高可讀性
+                var options = new JsonSerializerOptions { WriteIndented = true };
+
+                // 2. 核心序列化技術：將 List 陣列物件高壓轉換成標準格式的 JSON 字串
+                string jsonString = JsonSerializer.Serialize(records, options);
+
+                // 3. I/O 串流寫入：將字串完全覆蓋寫入硬碟中
+                File.WriteAllText(filePath, jsonString);
+
+                // 4. 成功提示與狀態解除：解除未儲存的安全警戒狀態
+                MessageBox.Show("資料已成功儲存！", "儲存成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                isUnsaved = false;
+            }
+            catch (Exception ex)
+            {
+                // 串流安全攔截：避免檔案遭鎖定或其他未知硬體錯誤導致程式崩潰
+                MessageBox.Show($"存檔失敗，錯誤原因：{ex.Message}", "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 事件：點擊「開始篩選」按鈕 (LINQ 進階多條件複合檢索)
+        /// </summary>
         private void btnFilter_Click(object sender, EventArgs e)
         {
+            // 1. 清空前端 DataGridView，準備接收過濾後的乾淨資料
             dgvRecords.Rows.Clear();
 
+            // 2. 將全域資料轉化為可列舉的 LINQ 查詢管道
             var filteredRecords = records.AsEnumerable();
 
-            // 1. 關鍵字篩選
+            // 3. 複合條件 A：動態檢查關鍵字輸入框是否包含文字
             if (!string.IsNullOrWhiteSpace(txtSearch.Text))
             {
+                // 模糊搜尋：同時比對「備註描述」或「消費分類」是否包含該字根
                 filteredRecords = filteredRecords.Where(r =>
                     (r.Description != null && r.Description.Contains(txtSearch.Text)) ||
                     r.Category.Contains(txtSearch.Text));
             }
 
-            // 2. 收支類型篩選 (修正後的安全寫法)
+            // 4. 複合條件 B：檢查收支類型過濾下拉選單是否已被選取
             if (cmbFilterType.SelectedIndex != -1)
             {
                 string selectedText = cmbFilterType.SelectedItem.ToString();
 
-                // 如果選「全部」就不篩選，選其他的就精準比對「支出」或「收入」
+                // 條件分支：依據文字進行收支類型的強型別精準過濾
                 if (selectedText == "支出" || selectedText == "只看支出")
                 {
                     filteredRecords = filteredRecords.Where(r => r.Type == "支出");
@@ -142,7 +244,7 @@ namespace PersonalAccountingSystem
                 }
             }
 
-            // 3. 繪製到畫面上
+            // 5. 最終前端渲染：將 LINQ 檢索出的過濾資料集，重新逐行繪製到 DataGridView 上
             foreach (var record in filteredRecords)
             {
                 dgvRecords.Rows.Add(
@@ -155,116 +257,117 @@ namespace PersonalAccountingSystem
             }
         }
 
-        // 負責重設所有輸入狀態，不論新增完畢或取消修改都會呼叫此方法
+        #endregion
+
+        #region --- 使用者介面連動與體驗優化 (UI/UX) ---
+
+        /// <summary>
+        /// 核心方法：將記憶體 List 重新填入 DataGridView，並即時更新加總三大財務看板標籤
+        /// </summary>
+        private void UpdateGridAndLabels()
+        {
+            // 1. 清除舊有的資料行殘留
+            dgvRecords.Rows.Clear();
+
+            int totalIncome = 0;
+            int totalExpense = 0;
+
+            // 2. 迴圈遍歷，一邊繪製前端表格，一邊在後台進行動態累加計算
+            foreach (var record in records)
+            {
+                dgvRecords.Rows.Add(
+                    record.Date.ToString("yyyy-MM-dd"),
+                    record.Type,
+                    record.Category,
+                    record.Amount,
+                    record.Description
+                );
+
+                // 計算邏輯分流
+                if (record.Type == "收入")
+                    totalIncome += record.Amount;
+                else
+                    totalExpense += record.Amount;
+            }
+
+            // 3. 將計算出的最新財務金額格式化，更新至三大前端動態看板
+            lblTotalIncome.Text = $"總收入：{totalIncome} 元";
+            lblTotalExpense.Text = $"總支出：{totalExpense} 元";
+
+            int balance = totalIncome - totalExpense;
+            lblBalance.Text = $"目前餘額：{balance} 元";
+        }
+
+        /// <summary>
+        /// 核心方法：重設所有前端控制項內容，回歸初始化狀態
+        /// </summary>
         private void ClearInputs()
         {
-            // 1. 清空所有輸入控制項
+            // 1. 文字與選擇狀態清空
             txtAmount.Clear();
             txtDescription.Clear();
-            cmbCategory.SelectedIndex = -1; // 取消選取分類
-            rbExpense.Checked = true;       // 預設切回支出
+            cmbCategory.SelectedIndex = -1;
+            rbExpense.Checked = true;
 
-            // 2. 解除修改狀態，回歸預設
+            // 2. 關鍵歸零：徹底解除修改模式，將主按鈕換回預設新增樣式
             editingIndex = -1;
             btnInsert.Text = "新增紀錄";
             btnInsert.UseVisualStyleBackColor = true;
 
-            // 3. ⚡ 關鍵新增：既然已經全空了，直接讓「清空/取消」按鈕變成停用狀態（灰色）
+            // 3. 物理狀態鎖：因為欄位已完全清空，直接將「取消/清空」按鈕變更為停用灰色狀態
             btnClear.Enabled = false;
         }
 
-        private void btnDelete_Click(object sender, EventArgs e)
+        /// <summary>
+        /// 狀態連動：即時檢查所有必填欄位的空值狀況，動態決定清空按鈕是否亮起
+        /// </summary>
+        private void CheckFieldsEmpty()
         {
-            // 檢查使用者有沒有選取表格中的任何一列
-            if (dgvRecords.CurrentRow == null || dgvRecords.CurrentRow.Index < 0)
+            // 邏輯閘：只要滿足任一輸入框有字、分類有選，或者正在修改狀態，按鈕即亮起
+            if (!string.IsNullOrEmpty(txtAmount.Text) ||
+                !string.IsNullOrEmpty(txtDescription.Text) ||
+                cmbCategory.SelectedIndex != -1 ||
+                editingIndex != -1)
             {
-                MessageBox.Show("請先點擊右邊表格，選取一筆你想刪除的紀錄！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                btnClear.Enabled = true; // 開啟按鈕（亮起）
             }
-
-            // 獲取目前選取那一列的索引（第幾筆資料）
-            int selectedIndex = dgvRecords.CurrentRow.Index;
-
-            // 防止選到表格最後一列的空白預留列
-            if (selectedIndex >= records.Count) return;
-
-            // 跳出確認視窗，避免使用者誤刪（防呆機制）
-            DialogResult result = MessageBox.Show("確定要刪除這筆記帳紀錄嗎？", "確認刪除", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
-
-            if (result == DialogResult.OK)
+            else
             {
-                // 1. 從後台的全域 records 清單中移除該筆資料
-                records.RemoveAt(selectedIndex);
-                isUnsaved = true; // 資料被刪除了，也算變更
-
-                // 2. 重新刷新畫面與計算金額
-                UpdateGridAndLabels();
+                btnClear.Enabled = false; // 停用按鈕（變灰）
             }
         }
 
-        private void btnSave_Click(object sender, EventArgs e)
+        /// <summary>
+        /// 事件：點擊「取消/清空欄位」按鈕
+        /// </summary>
+        private void btnClear_Click(object sender, EventArgs e)
         {
-            try
+            if (editingIndex == -1)
             {
-                // 1. 設定 JSON 的排版格式（讓存出來的文字檔比較美觀、易讀）
-                var options = new JsonSerializerOptions { WriteIndented = true };
-
-                // 2. 將 records 清單序列化成 JSON 字串
-                string jsonString = JsonSerializer.Serialize(records, options);
-
-                // 3. 將字串寫入檔案 (filePath 在最上方已經宣告為 "accounting_data.json")
-                File.WriteAllText(filePath, jsonString);
-
-                // 4. 提示使用者儲存成功
-                MessageBox.Show("資料已成功儲存！", "儲存成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                isUnsaved = false; // 資料已經安全寫入硬碟，解除警報
+                // 情境一：單純的新增階段清空
+                ClearInputs();
+                MessageBox.Show("欄位已清空！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            catch (Exception ex)
+            else
             {
-                // 如果存檔失敗（例如檔案被其他程式鎖定），跳出錯誤訊息
-                MessageBox.Show($"存檔失敗，錯誤原因：{ex.Message}", "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // 情境二：取消原本的表格雙擊修改模式，回歸到原始新增狀態
+                ClearInputs();
+                MessageBox.Show("已取消修改變更，回到全新新增模式！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
-        private void PersonalAccountingSystem_Load(object sender, EventArgs e)
-        {
-            // 檢查硬碟裡有沒有之前存過的記帳檔案
-            if (File.Exists(filePath))
-            {
-                try
-                {
-                    // 1. 讀取檔案內的所有文字
-                    string jsonString = File.ReadAllText(filePath);
-
-                    // 2. 將 JSON 字串反序列化回 List<Transaction> 清單
-                    records = JsonSerializer.Deserialize<List<Transaction>>(jsonString);
-
-                    // 3. 如果清單為空，幫它重新初始化避免報錯
-                    if (records == null)
-                    {
-                        records = new List<Transaction>();
-                    }
-
-                    // 4. 讀檔成功後，刷新介面把歷史資料顯示出來
-                    UpdateGridAndLabels();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"讀取舊資料失敗，檔案可能損毀。\n錯誤原因：{ex.Message}", "讀檔錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-            // 在 Load 事件的最下面加上這行，讓程式剛啟動時輸入框與按鈕狀態正確初始化
-            ClearInputs();
-        }
-
+        /// <summary>
+        /// 事件：雙擊右側 DataGridView 儲存格 (啟動進階雙擊修改模式)
+        /// </summary>
         private void dgvRecords_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
+            // 邊界安全攔截：點擊到欄位標題標頭時不執行
             if (e.RowIndex < 0 || e.RowIndex >= records.Count) return;
 
-            // 1. 記下現在正在修改這一列
+            // 1. 關鍵錨點切換：切換狀態鎖，記下目前正在修改這筆資料的物理索引
             editingIndex = e.RowIndex;
 
-            // 2. 獲取該筆資料並帶入輸入框
+            // 2. 讀取指定物件，將舊有資料回填至左側輸入面板中
             var record = records[editingIndex];
             dtpDate.Value = record.Date;
             if (record.Type == "支出") rbExpense.Checked = true; else rbIncome.Checked = true;
@@ -272,23 +375,58 @@ namespace PersonalAccountingSystem
             txtAmount.Text = record.Amount.ToString();
             txtDescription.Text = record.Description;
 
-            // 3. 貼心提示：把新增按鈕的文字改成「確認修改」
+            // 3. 視覺化引導：動態切換主按鈕為醒目的橘色「確認修改」，提示使用者操作改變
             btnInsert.Text = "確認修改";
             btnInsert.BackColor = System.Drawing.Color.Orange;
 
-            // 4. ⚡ 閃電引導：自動把游標鎖定到左邊的金額輸入框，並全選文字，方便他直接重打！
+            // 4. 閃電聚焦：自動將游標瞬移聚焦到金額欄位並全選反白，提供使用者極速修改體驗
             txtAmount.Focus();
-            txtAmount.SelectAll(); // 自動反白金額，使用者連 Backspace 都不用按，直接打字就能覆蓋
-            // 在雙擊事件的最下面加上這行，確保進入修改模式時取消按鈕一定是亮起的！
+            txtAmount.SelectAll();
+
+            // 5. 連動：進入修改狀態後，不論如何都強行亮起取消編輯按鈕
             btnClear.Enabled = true;
         }
 
+        #endregion
+
+        #region --- 隱藏細節優化：鍵盤與安全關閉攔截事件 ---
+
+        /// <summary>
+        /// 鍵盤攔截：限制金額輸入框只能打「0-9 的純數字」與「Backspace 鍵」 (物理級前端防呆)
+        /// </summary>
+        private void txtAmount_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // 若輸入的按鍵非數字，且同時不為退格控制鍵(代碼8)，則透過 Handled 強制沒收輸入
+            if (!char.IsDigit(e.KeyChar) && e.KeyChar != (char)8)
+            {
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// 鍵盤快捷連動：在備註區按下鍵盤 Enter 鍵時，視同點擊新增/確認按鈕
+        /// </summary>
+        private void txtDescription_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                // 沒收按鍵，防止 Windows 系統發出難聽的「嗶」警示音
+                e.SuppressKeyPress = true;
+
+                // 導向執行點擊事件
+                btnInsert_Click(sender, e);
+            }
+        }
+
+        /// <summary>
+        /// 安全機制：當使用者點選視窗右上角「X」關閉時，攔截並實作未儲存防禦提示
+        /// </summary>
         private void PersonalAccountingSystem_FormClosing(object sender, FormClosingEventArgs e)
         {
-            // 如果目前沒有未儲存的變更，直接放行讓視窗關閉
+            // 若當前記憶體狀態安全（無任何未存檔異動），直接放行關閉
             if (!isUnsaved) return;
 
-            // 跳出「是、否、取消」三顆按鈕的對話框
+            // 彈出具有「是、否、取消」三向路由的進階對話框
             DialogResult result = MessageBox.Show(
                 "您有尚未儲存的變更，是否進行儲存？",
                 "提醒",
@@ -298,89 +436,25 @@ namespace PersonalAccountingSystem
 
             if (result == DialogResult.Yes)
             {
-                // 模式一：使用者按「是」 -> 自動幫忙觸發儲存按鈕的點擊事件
+                // 分支一：選擇儲存，自動引導點擊 btnSave 按鈕執行 JSON 存檔，隨後順序關閉
                 btnSave_Click(sender, e);
-                // 儲存完成後，放行關閉視窗 (不阻擋關閉)
             }
             else if (result == DialogResult.No)
             {
-                // 模式二：使用者按「否」 -> 代表確定不儲存，放行關閉視窗 (不阻擋關閉)
+                // 分支二：選擇否，代表放棄本次開啟期間的所有變動，放行不阻擋關閉
             }
             else if (result == DialogResult.Cancel)
             {
-                // 模式三：使用者按「取消」 -> ⚡ 關鍵！取消關閉視窗事件，讓畫面留在原處
+                // 分支三：選擇取消，核心防禦：駁回關閉事件，完美將視窗與未存檔資料完整保留在畫面上
                 e.Cancel = true;
             }
         }
 
-        private void txtDescription_KeyDown(object sender, KeyEventArgs e)
-        {
-            // 檢查使用者按下的是不是 Enter 鍵
-            if (e.KeyCode == Keys.Enter)
-            {
-                // ⚡ 關鍵行：消除按 Enter 的系統「嗶」提示音
-                e.SuppressKeyPress = true;
+        // 以下為文字與元件內容變更時，觸發即時重新評估清空按鈕亮燈狀況的輕量事件
+        private void txtAmount_TextChanged(object sender, EventArgs e) => CheckFieldsEmpty();
+        private void txtDescription_TextChanged(object sender, EventArgs e) => CheckFieldsEmpty();
+        private void cmbCategory_SelectedIndexChanged(object sender, EventArgs e) => CheckFieldsEmpty();
 
-                // 自動去執行新增/修改按鈕的點擊事件！
-                btnInsert_Click(sender, e);
-            }
-        }
-
-        private void txtAmount_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            // 允許輸入數字 (0-9) 與 倒退鍵 (Backspace, 控制碼為 8)
-            if (!char.IsDigit(e.KeyChar) && e.KeyChar != (char)8)
-            {
-                // ⚡ 關鍵行：將 Handled 設為 true，代表系統攔截這個按鍵，不讓它輸入進 TextBox
-                e.Handled = true;
-            }
-        }
-
-        private void btnClear_Click(object sender, EventArgs e)
-        {
-            // 如果目前本來就不是修改模式，只是單純的欄位清空
-            if (editingIndex == -1)
-            {
-                ClearInputs();
-                MessageBox.Show("欄位已清空！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            else
-            {
-                // 如果目前是修改模式，使用者主動按下取消
-                ClearInputs();
-                MessageBox.Show("已取消修改變更，回到全新新增模式！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
-        // 檢查目前輸入框有沒有東西，動態決定要不要啟用清空按鈕
-        private void CheckFieldsEmpty()
-        {
-            // 只要「金額有打字」或「備註有打字」或「分類有選取」或「正處於修改模式」
-            if (!string.IsNullOrEmpty(txtAmount.Text) ||
-                !string.IsNullOrEmpty(txtDescription.Text) ||
-                cmbCategory.SelectedIndex != -1 ||
-                editingIndex != -1)
-            {
-                btnClear.Enabled = true; // 亮起按鈕
-            }
-            else
-            {
-                btnClear.Enabled = false; // 保持灰色
-            }
-        }
-
-        private void txtAmount_TextChanged(object sender, EventArgs e)
-        {
-            CheckFieldsEmpty();
-        }
-
-        private void txtDescription_TextChanged(object sender, EventArgs e)
-        {
-            CheckFieldsEmpty();
-        }
-
-        private void cmbCategory_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            CheckFieldsEmpty();
-        }
+        #endregion
     }
 }
