@@ -155,13 +155,22 @@ namespace PersonalAccountingSystem
             }
         }
 
-        // 方便使用者繼續記下一筆，自動清空輸入框
+        // 負責重設所有輸入狀態，不論新增完畢或取消修改都會呼叫此方法
         private void ClearInputs()
         {
+            // 1. 清空所有輸入控制項
             txtAmount.Clear();
             txtDescription.Clear();
             cmbCategory.SelectedIndex = -1; // 取消選取分類
             rbExpense.Checked = true;       // 預設切回支出
+
+            // 2. 解除修改狀態，回歸預設
+            editingIndex = -1;
+            btnInsert.Text = "新增紀錄";
+            btnInsert.UseVisualStyleBackColor = true;
+
+            // 3. ⚡ 關鍵新增：既然已經全空了，直接讓「清空/取消」按鈕變成停用狀態（灰色）
+            btnClear.Enabled = false;
         }
 
         private void btnDelete_Click(object sender, EventArgs e)
@@ -244,6 +253,8 @@ namespace PersonalAccountingSystem
                     MessageBox.Show($"讀取舊資料失敗，檔案可能損毀。\n錯誤原因：{ex.Message}", "讀檔錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+            // 在 Load 事件的最下面加上這行，讓程式剛啟動時輸入框與按鈕狀態正確初始化
+            ClearInputs();
         }
 
         private void dgvRecords_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -268,6 +279,8 @@ namespace PersonalAccountingSystem
             // 4. ⚡ 閃電引導：自動把游標鎖定到左邊的金額輸入框，並全選文字，方便他直接重打！
             txtAmount.Focus();
             txtAmount.SelectAll(); // 自動反白金額，使用者連 Backspace 都不用按，直接打字就能覆蓋
+            // 在雙擊事件的最下面加上這行，確保進入修改模式時取消按鈕一定是亮起的！
+            btnClear.Enabled = true;
         }
 
         private void PersonalAccountingSystem_FormClosing(object sender, FormClosingEventArgs e)
@@ -298,6 +311,76 @@ namespace PersonalAccountingSystem
                 // 模式三：使用者按「取消」 -> ⚡ 關鍵！取消關閉視窗事件，讓畫面留在原處
                 e.Cancel = true;
             }
+        }
+
+        private void txtDescription_KeyDown(object sender, KeyEventArgs e)
+        {
+            // 檢查使用者按下的是不是 Enter 鍵
+            if (e.KeyCode == Keys.Enter)
+            {
+                // ⚡ 關鍵行：消除按 Enter 的系統「嗶」提示音
+                e.SuppressKeyPress = true;
+
+                // 自動去執行新增/修改按鈕的點擊事件！
+                btnInsert_Click(sender, e);
+            }
+        }
+
+        private void txtAmount_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // 允許輸入數字 (0-9) 與 倒退鍵 (Backspace, 控制碼為 8)
+            if (!char.IsDigit(e.KeyChar) && e.KeyChar != (char)8)
+            {
+                // ⚡ 關鍵行：將 Handled 設為 true，代表系統攔截這個按鍵，不讓它輸入進 TextBox
+                e.Handled = true;
+            }
+        }
+
+        private void btnClear_Click(object sender, EventArgs e)
+        {
+            // 如果目前本來就不是修改模式，只是單純的欄位清空
+            if (editingIndex == -1)
+            {
+                ClearInputs();
+                MessageBox.Show("欄位已清空！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                // 如果目前是修改模式，使用者主動按下取消
+                ClearInputs();
+                MessageBox.Show("已取消修改變更，回到全新新增模式！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+        // 檢查目前輸入框有沒有東西，動態決定要不要啟用清空按鈕
+        private void CheckFieldsEmpty()
+        {
+            // 只要「金額有打字」或「備註有打字」或「分類有選取」或「正處於修改模式」
+            if (!string.IsNullOrEmpty(txtAmount.Text) ||
+                !string.IsNullOrEmpty(txtDescription.Text) ||
+                cmbCategory.SelectedIndex != -1 ||
+                editingIndex != -1)
+            {
+                btnClear.Enabled = true; // 亮起按鈕
+            }
+            else
+            {
+                btnClear.Enabled = false; // 保持灰色
+            }
+        }
+
+        private void txtAmount_TextChanged(object sender, EventArgs e)
+        {
+            CheckFieldsEmpty();
+        }
+
+        private void txtDescription_TextChanged(object sender, EventArgs e)
+        {
+            CheckFieldsEmpty();
+        }
+
+        private void cmbCategory_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            CheckFieldsEmpty();
         }
     }
 }
